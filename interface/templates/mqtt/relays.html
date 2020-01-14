@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <div class="row">
+        <div class="d-flex flex-row">
+            <h3>Relays</h3>
+        </div>
+    </div>
+    <div class="row">
+
+        <div class="d-flex justify-self-center">
+            <div class="d-flex flex-row card-group flex-wrap">
+                {% for relay in context.relays %}
+                    <div class="d-flex card">
+                        <div class="card-body">
+                            <h3 class="card-title">
+                                Relay {{ relay }}
+                            </h3>
+                            <input type="checkbox"
+                                   id="relay_toggle_{{ relay }}"
+                                   relay_id={{ relay }} class="relay-toggle"
+                                   checked data-toggle="toggle"
+                                   data-onstyle="success"
+                                   data-offstyle="danger"
+                                    data-on="Enabled"
+                                    data-off="Disabled">
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+
+
+{% endblock %}
+
+{% block js %}
+    <script type="text/javascript" charset="utf-8">
+        var socket = io();
+        socket.on('connect', function() {
+            socket.emit('my event', {data: 'I\'m connected!'});
+        });
+       socket.on('relay_states', function(msg) {
+           relays_json = JSON.parse(msg);
+           console.log(relays_json.timestamp);
+            if(msg[1] === 0){
+               $("#relay_toggle_1").bootstrapToggle("on");
+            };
+
+       });
+    </script>
+    <script type="text/javascript" charset="utf-8">
+    // An event handler for a change of value
+        $('input.relay-toggle').on('change', function(event) {
+            socket.emit('relay_state_change', {
+                who:$(this).attr('relay_id'),
+                data: $(this).prop('checked')
+             });
+            console.log($(this).prop('checked'));
+             return false;
+         });
+    </script>
+{% endblock %}

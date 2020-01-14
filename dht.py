@@ -132,7 +132,7 @@ def get_relay_states():
 	states = {}
 	for pin in pins.keys():
 		state = get_relay_state(pin)
-		states[pin] = state
+		states[str(pin)] = state
 	states["timestamp"] = get_timestamp()
 	print(states)
 	return str(states)
@@ -199,6 +199,7 @@ topics_to_subscribe = [
 		"settings/light_pins",
 		"jobs"
 		]
+
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
 	print("Connected with result code "+str(rc))
