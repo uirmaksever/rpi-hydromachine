@@ -52,8 +52,23 @@ def handle_relay_states(client, userdata, message):
 
     socketio.emit("relay_states", relay_states, broadcast=True)
     print("Relays message: {}".format(message.payload.decode()), type(message.payload.decode()))
-    return relay_states
 
+
+@mqtt.on_topic("weather/humidity_res")
+def handle_humidity(client, userdata, message):
+    humidity = message.payload.decode()
+    socketio.emit("humidity", humidity, broadcast=True)
+    print(message)
+
+@mqtt.on_topic("weather/temperature_res")
+def handle_temperature(client, userdata, message):
+    temperature = message.payload.decode()
+    socketio.emit("temperature", temperature, broadcast=True)
+    print(temperature)
+
+# TODO!: Write socketio views that handle open and close times
+# TODO!: Save data coming from rpi
+# TODO!: Isolate settings data such as pins, light_pins and use those in common between two scripts
 
 @socketio.on("relay_state_change")
 def relay_state_changed(message):
