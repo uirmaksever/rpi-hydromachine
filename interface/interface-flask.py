@@ -3,6 +3,7 @@ from flask_mqtt import Mqtt
 from flask_socketio import SocketIO, emit
 from flask_debugtoolbar import DebugToolbarExtension
 import json
+import ast
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'araba123'
@@ -26,7 +27,8 @@ topics_to_subscribe = [
     "relay/#",
     "settings/time/#",
     "settings/light_pins",
-    "jobs"
+    "jobs",
+    "jobs_res"
 ]
 relays = list(range(1,9))
 
@@ -66,6 +68,15 @@ def handle_temperature(client, userdata, message):
     socketio.emit("temperature", temperature, broadcast=True)
     print(temperature)
 
+
+@mqtt.on_topic("jobs_res")
+def handle_jobs(client, userdata, message):
+    jobs = message.payload.decode()
+    jobs_json = ast.literal_eval(jobs)
+    jobs_tidy = jobs_json[3]["job_next_run"].strftime("%d-%m-%Y %h:%m")
+    socketio.emit("jobs", jobs_tidy, broadcast=True)
+    print(jobs)
+
 # TODO!: Write socketio views that handle open and close times
 # TODO!: Save data coming from rpi
 # TODO!: Isolate settings data such as pins, light_pins and use those in common between two scripts
@@ -86,7 +97,11 @@ def relay_state_changed(message):
 def index():
     print(relays)
     context = {"relays": relays}
-    mqtt.publish('relays/1')
+    # Publishing to topics for them to be given response before the page is loaded for user
+    mqtt.publish("relays")
+    mqtt.publish("weather/temperature")
+    mqtt.publish("weather/humidity")
+    mqtt.publish("jobs")
 
     return render_template("mqtt/relays.html", context=context)
 

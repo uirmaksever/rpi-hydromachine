@@ -31,18 +31,6 @@
                         <small>Last updated: <small id="humidity_timestamp"></small></small>
                     </div>
                 </div>
-                <div class="d-flex card">
-                    <div class="card-body">
-                        <h5>Open Time</h5>
-                        <p id="open_time_container">
-
-                        </p>
-                        <h5>Close Time</h5>
-                        <p id="close_time_container">
-
-                        </p>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -73,6 +61,25 @@
                     </div>
                 {% endfor %}
             </div>
+        </div>
+    </div>
+    <div class="row">
+        <h3>Jobs</h3>
+    </div>
+    <div class="row">
+        <div class="card-group">
+            <div class="d-flex card">
+                    <div class="card-body">
+                        <h5>Open Time</h5>
+                        <p id="open_time_container">
+
+                        </p>
+                        <h5>Close Time</h5>
+                        <p id="close_time_container">
+
+                        </p>
+                    </div>
+                </div>
         </div>
     </div>
 
@@ -108,6 +115,10 @@
            console.log(message_data);
             $("#temperature_container").html(temperature);
             $("#temperature_timestamp").html(timestamp);
+       });
+       socket.on("jobs", function (msg) {
+           console.log(msg);
+          $("#open_time_container").text(msg);
        });
     </script>
     <script type="text/javascript" charset="utf-8">
