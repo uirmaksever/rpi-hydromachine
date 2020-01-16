@@ -333,18 +333,18 @@ def on_message(client, userdata, msg):
 def get_scheduled_jobs():
 	job_list = []
 	for job in scheduler.get_jobs():
-		print(dir(job))
 		job_dict = {
 			"job_id": job.id,
-			"job_trigger": job.trigger,
-			"job_next_run": job.next_run_time,
+			"job_next_run": job.next_run_time.strftime("%d-%m-%Y %H:%m"),
 			"called_function": job.name
 		}
-		print("name: %s, trigger: %s, next run: %s, handler: %s" % (
-		job.name, job.trigger, job.next_run_time, job.func))
+		#~ print("name: %s, trigger: %s, next run: %s, handler: %s" % (
+		#~ job.name, job.trigger, job.next_run_time, job.func))
 		job_list.append(job_dict)
-	print(job_list)
-	return job_list
+		print(job_dict)
+	jobs_list_json = json.dumps(job_list)
+	print(jobs_list_json)
+	return jobs_list_json
 	
 
 
