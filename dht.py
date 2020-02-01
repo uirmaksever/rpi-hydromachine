@@ -22,12 +22,11 @@ DEFAULT_OPENING_STATE = GPIO.LOW
 # CLOSE_TIME = "15:34"
 # LIGHT_PINS = [1, 2, 3]
 open_close_time_json_filename = "open_close_time.json"
-with open(open_close_time_json_filename) as time_file:
-	time_json = json.loads(time_file.read())
-	print(time_json)
-	LIGHT_PINS = time_json["light_pins"]
-	OPEN_TIME = time_json["open_time"]
-	CLOSE_TIME = time_json["close_time"]
+def get_settings():
+	with open(open_close_time_json_filename) as time_file:
+		time_json = json.loads(time_file.read())
+		print(time_json)
+		return time_json
 
 dht_pin = 4
 dht_sensor = Adafruit_DHT.DHT22
@@ -140,7 +139,7 @@ def get_relay_states():
 # Saves given key value to json file
 def update_time_json(key_, value_):
 	time_json[key_] = value_
-	print(json.dumps(time_json))
+	print("SETTINGS FILE UPDATED - {}:{}".format(key_, value_))
 	with open(open_close_time_json_filename, "w") as time_file:
 		time_file.write(json.dumps(time_json, sort_keys=True, indent=4))
 	return time_json
@@ -167,38 +166,31 @@ def humi():
 
 def set_open_close_time():
 	# Default values for initial start. Implement persistent memory on open and close jobs in the future
-	for light_pin in LIGHT_PINS:
+	settings = get_settings()
+	for light_pin in settings["light_pins"]:
 		# For every light_pin, adds a job. job_id is like open_time_1, open_time_2...
 		scheduler.add_job(id="open_time_{}".format(str(light_pin)),
 								func=set_relay,
 								args=[int(light_pin),0],
 								replace_existing=True,
 								trigger="cron",
-								hour=OPEN_TIME.split(":")[0],
-								minute=OPEN_TIME.split(":")[1])
+								hour=settings["open_time"].split(":")[0],
+								minute=settings["open_time"].split(":")[1])
 
 		scheduler.add_job(id="close_time_{}".format(str(light_pin)),
 								func=set_relay,
 								args=[int(light_pin),1],
 								replace_existing=True,
 								trigger="cron",
-								hour=CLOSE_TIME.split(":")[0],
-								minute=CLOSE_TIME.split(":")[1])
+								hour=settings["close_time"].split(":")[0],
+								minute=settings["close_time"].split(":")[1])
 set_open_close_time()
 
 
 ### MQTT PART START ###
 
 # Subscribed topics for pi to listen to
-topics_to_subscribe = [
-		"weather/#",
-		"rpi/#",
-		"relays/#",
-		"relay/#",
-		"settings/time/#",
-		"settings/light_pins",
-		"jobs"
-		]
+topics_to_subscribe = get_settings()["subscribed_topics"]
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -206,14 +198,7 @@ def on_connect(client, userdata, flags, rc):
 
 	# Subscribing in on_connect() means that if we lose the connection and
 	# reconnect then subscriptions will be renewed.
-	# client.subscribe("weather/#")
-	# client.subscribe("weather/#")
-	
-	# client.subscribe("rpi/#")
-	# client.subscribe("relays/#")
-	# client.subscribe("relay/#")	
-	# client.subscribe("settings/time/#")
-	# client.subscribe("jobs")
+
 	for topic in topics_to_subscribe:
 		client.subscribe(topic)
 		print("[MQTT] Connected to {}.".format(topic))
@@ -356,7 +341,7 @@ def schedule_periodic_info():
 	client.publish("weather/temperature_res", temperature)
 	relay_states = get_relay_states()
 	client.publish("relays_res", relay_states)
-scheduler.add_job(func=schedule_periodic_info, trigger="interval", seconds=10)
+scheduler.add_job(func=schedule_periodic_info, trigger="interval", seconds=60)
 
 # MQTT connection settings
 # TODO!: Containing auth info in code is dangerous. Split it into another
