@@ -2,8 +2,7 @@
     "close_time": "19:00",
     "light_pins": [
         1,
-        2,
-        3
+        5
     ],
     "open_time": "01:00",
     "subscribed_topics": [
