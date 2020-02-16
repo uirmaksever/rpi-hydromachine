@@ -132,7 +132,7 @@ def get_relay_states():
 	for pin in pins.keys():
 		state = get_relay_state(pin)
 		states[str(pin)] = state
-	states["timestamp"] = get_timestamp()
+	# states["timestamp"] = get_timestamp()
 	print(states)
 	return str(states)
 

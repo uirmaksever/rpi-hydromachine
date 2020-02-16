@@ -13,6 +13,7 @@ app.config['MQTT_USERNAME'] = 'emxojmmk'
 app.config['MQTT_PASSWORD'] = 'A6eATnW1njMR'
 app.config['MQTT_REFRESH_TIME'] = 1.0  # refresh time in seconds
 app.config['MQTT_TLS_ENABLED'] = False
+
 mqtt = Mqtt(app)
 socketio = SocketIO(app)
 toolbar = DebugToolbarExtension(app)
@@ -51,7 +52,6 @@ def handle_mqtt_message(client, userdata, message):
 def handle_relay_states(client, userdata, message):
     print(message.payload.decode())
     relay_states = message.payload.decode()
-
     socketio.emit("relay_states", relay_states, broadcast=True)
     print("Relays message: {}".format(message.payload.decode()), type(message.payload.decode()))
 
@@ -72,10 +72,9 @@ def handle_temperature(client, userdata, message):
 @mqtt.on_topic("jobs_res")
 def handle_jobs(client, userdata, message):
     jobs = message.payload.decode()
-    jobs_json = ast.literal_eval(jobs)
-    jobs_tidy = jobs_json[3]["job_next_run"].strftime("%d-%m-%Y %h:%m")
-    socketio.emit("jobs", jobs_tidy, broadcast=True)
-    print(jobs)
+    jobs_json = json.loads(jobs)
+    socketio.emit("jobs", jobs_json, broadcast=True)
+    print(jobs_json)
 
 # TODO!: Write socketio views that handle open and close times
 # TODO!: Save data coming from rpi
@@ -93,17 +92,20 @@ def relay_state_changed(message):
     mqtt.publish("relays")
     emit('update value', message, broadcast=True)
 
+
 @app.route("/")
 def index():
     print(relays)
     context = {"relays": relays}
     # Publishing to topics for them to be given response before the page is loaded for user
-    mqtt.publish("relays")
+
     mqtt.publish("weather/temperature")
     mqtt.publish("weather/humidity")
+    mqtt.publish("relays")
     mqtt.publish("jobs")
 
     return render_template("mqtt/relays.html", context=context)
+
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000, use_reloader=False, debug=True)
