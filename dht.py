@@ -9,7 +9,6 @@ import json
 
 # Declare instances of flask and apscheduler. Apscheduler responsible
 # from time dependent tasks such as switching relays at certain time
-app = Flask(__name__)
 scheduler = BackgroundScheduler(timezone="Asia/Istanbul")
 
 ## CONFIG
@@ -65,17 +64,16 @@ for i in pins.values():
 	GPIO.setup(i, DEFAULT_OPENING_STATE)
 
 # Returns the current relay state info
-@app.route('/relay/<int:relay_pin>')
 def get_relay_state(relay_pin):
 	current_state = GPIO.input(pins[relay_pin])
 	payload = {
+		"relay_id": relay_pin,
 		"current_state": current_state,
 		"timestamp": get_timestamp()
 	}
-	return str(current_state)
+	return json.dumps(payload)
 
-# Changes the relay state. You should provide 0 or 1 as state
-@app.route('/relay/<int:relay_pin>/<int:state>')	
+# Changes the relay state. You should provide 0 or 1 as state	
 def set_relay(relay_pin, state):
 	original_state = get_relay_state(relay_pin)
 	if state not in [0,1,"0","1"]:
@@ -94,16 +92,14 @@ def set_relay(relay_pin, state):
 		"changed_state_confirm": get_relay_state(relay_pin),
 		"event_timestamp": get_timestamp()
 	}
-	return payload
+	return json.dumps(payload)
 
 # Switches the relay based on current state
 # This thing does not work
-@app.route('/relay/<int:relay_pin>/switch')
 def switch_relay(relay_pin):
 	original_state = get_relay_state(relay_pin)
-	
+	reverse_state = not original_state	
 	print(original_state, reverse_state)
-	reverse_state = not original_state
 
 	set_relay(relay_pin, reverse_state)
 	payload = {
@@ -113,11 +109,11 @@ def switch_relay(relay_pin):
 		"changed_state_confirm": get_relay_state(relay_pin),
 		"timestamp": get_timestamp()
 	}
-	return str(not original_state)
+	return json.dumps(payload)
 
 # For fun and testing the physical connections. Iteratively opens and 
 # closes all relays
-@app.route('/playtime')
+
 def playtime():
 	for j in [0, 1]:
 		for i in pins:			
@@ -134,7 +130,7 @@ def get_relay_states():
 		states[str(pin)] = state
 	# states["timestamp"] = get_timestamp()
 	print(states)
-	return str(states)
+	return json.dumps(states)
 
 # Saves given key value to json file
 def update_time_json(key_, value_):
@@ -145,47 +141,49 @@ def update_time_json(key_, value_):
 	return time_json
 	
 # Returns only temperature data
-@app.route('/temp')
 def temp():
 	data = get_dht()[1]
 	payload = {
 		"temperature": data,
 		"timestamp": get_timestamp()
 	}
-	return payload
+	return json.dumps(payload)
 
 # Returns only humidity data
-@app.route('/humi')
 def humi():
 	data = get_dht()[0]
 	payload = {
 		"humidity": data,
 		"timestamp": get_timestamp()
 	}
-	return payload
+	return json.dumps(payload)
 
-def set_open_close_time():
-	# Default values for initial start. Implement persistent memory on open and close jobs in the future
+
+def check_open_close_time():
+	now = datetime.datetime.now()
+	# Get settings from json file
 	settings = get_settings()
-	for light_pin in settings["light_pins"]:
-		# For every light_pin, adds a job. job_id is like open_time_1, open_time_2...
-		scheduler.add_job(id="open_time_{}".format(str(light_pin)),
-								func=set_relay,
-								args=[int(light_pin),0],
-								replace_existing=True,
-								trigger="cron",
-								hour=settings["open_time"].split(":")[0],
-								minute=settings["open_time"].split(":")[1])
-
-		scheduler.add_job(id="close_time_{}".format(str(light_pin)),
-								func=set_relay,
-								args=[int(light_pin),1],
-								replace_existing=True,
-								trigger="cron",
-								hour=settings["close_time"].split(":")[0],
-								minute=settings["close_time"].split(":")[1])
-set_open_close_time()
-
+	# Split hours and minutes
+	open_time_set = settings["open_time"].split(":")
+	close_time_set = settings["close_time"].split(":")
+	# We are comparing time against today
+	open_time = now.replace(hour=int(open_time_set[0]), minute=int(open_time_set[1]), second=0)
+	close_time = now.replace(hour=int(close_time_set[0]), minute=int(close_time_set[1]), second=0)
+	# Check if current time is within specified interval
+	if (now > open_time) and (now < close_time):
+		print("Light is open now")
+		print(open_time, ">", now, ">", close_time)
+		# Iterate over designated light pins and open them
+		for light_pin in settings["light_pins"]:
+			set_relay(int(light_pin), 0)
+	else:
+		print("Close time")
+		print(now, "<", open_time)
+		# Close light pins
+		for light_pin in settings["light_pins"]:
+			set_relay(int(light_pin), 1)
+	time.sleep(1)
+scheduler.add_job(func=check_open_close_time, trigger="interval", seconds=60)
 
 ### MQTT PART START ###
 
@@ -279,7 +277,6 @@ def on_message(client, userdata, msg):
 		confirmed_time = datetime.datetime.strptime(user_input, "%H:%M")
 		print("Open time added or changed: {}".format(user_input))
 		update_time_json("open_time", user_input)
-		set_open_close_time()
 
 	# Sets the close time for light pins
 	# Syntax for this msg is [time_input, relay_input]
@@ -298,14 +295,14 @@ def on_message(client, userdata, msg):
 						#~ minute=confirmed_time.minute)
 						#~ )
 		update_time_json("close_time", user_input)
-		set_open_close_time()
+
 		
 	if msg.topic == "settings/light_pins":
 		user_input = msg.payload.decode()
 		# List comes as str, converting it to literal by json library
 		light_pins_list = json.loads(user_input)
 		update_time_json("light_pins", light_pins_list)
-		set_open_close_time()
+
 		
 	# Returns all existing jobs
 	if msg.topic == "jobs":
@@ -364,8 +361,9 @@ client.connect(MQTT_HOST, MQTT_PORT, 60)
 if __name__ == "__main__":
 	get_dht()
 	scheduler.start()
-	client.loop_start()
-	app.run(host='0.0.0.0')
+	while True:
+		client.loop()
+
 
 
 

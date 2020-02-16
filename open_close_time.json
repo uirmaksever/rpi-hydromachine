@@ -1,11 +1,11 @@
 {
-    "close_time": "16:00",
+    "close_time": "19:00",
     "light_pins": [
         1,
         2,
         3
     ],
-    "open_time": "23:00",
+    "open_time": "01:00",
     "subscribed_topics": [
 		"weather/#",
 		"rpi/#",
